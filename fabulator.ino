@@ -46,7 +46,7 @@
 #include "Stepper.h"
 
 unsigned long currentMillis = 0;
-bool mono = true;
+bool mono = false;
 
 Stepper stepper1(X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN);
 Stepper stepper2(Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN);
@@ -96,7 +96,7 @@ void handleSerial() {
     Serial.print("Got: ");
     Serial.println(note);
 
-    bool isNote = n > 0 && n < 5;
+    bool isNote = n > 0 && n < NUM_STEPPERS + 1;
     int i;
     if (isNote) {
       if (mono) {
@@ -116,8 +116,23 @@ void handleSerial() {
       }
     }
 
-    if (n == 11) {
+    if (n == 11) {  // Detune up to 1 semitone
       float f = 0.059463 * ((lo / 127.0) * 2 - 1);
+      if (mono) {
+        for (i = 0; i < NUM_STEPPERS; i++) {
+          steppers[i]->setDetune(1 + ((float)i / (NUM_STEPPERS-1))*f);
+        }
+      } else {
+        for (i = 0; i < NUM_STEPPERS; i++) {
+          steppers[i]->setDetune(1 + f);
+        }
+      }
+
+      Serial.println(f);
+    }
+
+    if (n == 12) {  // Detune up to 1 octave
+      float f = 2 * ((lo / 127.0) * 2 - 1);
       if (mono) {
         for (i = 0; i < NUM_STEPPERS; i++) {
           steppers[i]->setDetune(1 + ((float)i / (NUM_STEPPERS-1))*f);
