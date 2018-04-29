@@ -22,7 +22,7 @@ import rtmidi
 from rtmidi.midiutil import open_midiinput
 from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, CONTROLLER_CHANGE
 
-ser = serial.Serial('/dev/tty.usbmodem1421', 115200)
+ser = serial.Serial('/dev/tty.usbmodem1411', 115200)
 print ser.readline()
 
 # Prompts user for MIDI input port, unless a valid port number or name
@@ -81,39 +81,42 @@ try:
 			timer += deltatime
 			print("[%s] @%0.6f %r" % (port_name, timer, message))
 			note = message[1]
+			volume = message[2]
 			if message[0] & 0xF0 == NOTE_ON:
 				freq = pow(2.0, (note - 69) / 12.0) * 440.0   # Hz -> 1/s
 				speed = int(freq)   # steps / second
 				lobyte = speed & 0xff
 				hibyte = (speed & 0xff00) >> 8
 				motor = getAvailableMotor() & 0xff
+				volLoByte = volume & 0xff
+				volHiByte = (volume & 0xff00) >> 8
 				print(speed)
 				if motor > 0:
-					values = bytearray([motor, lobyte, hibyte])
+					values = bytearray([motor, lobyte, hibyte, volLoByte, volHiByte])
 					ser.write(values)
 					active_notes[note] = motor
-					print ser.readline()
+					# print ser.readline()
 			elif message[0] & 0xF0 == NOTE_OFF:
 				if active_notes.has_key(note):
-					values = bytearray([active_notes[note], 0, 0])
+					values = bytearray([active_notes[note], 0, 0, 0, 0])
 					setMotorAvailable(active_notes[note])
 					ser.write(values)
 					active_notes.pop(note)
-					print ser.readline()
+					# print ser.readline()
 			elif message[0] & 0xF0 == CONTROLLER_CHANGE:
 				if message[1] == 21:
-					values = bytearray([10, message[2], 0])
+					values = bytearray([10, message[2], 0, 0, 0])
 				elif message[1] == 22:
-					values = bytearray([11, message[2], 0])
+					values = bytearray([11, message[2], 0, 0, 0])
 				elif message[1] == 23:
-					values = bytearray([12, message[2], 0])
+					values = bytearray([12, message[2], 0, 0, 0])
 
 				ser.write(values)
-				print ser.readline()
-				print ser.readline()
+				# print ser.readline()
+				# print ser.readline()
 
 
-		time.sleep(0.005)
+		# time.sleep(0.005)
 except KeyboardInterrupt:
 	print('')
 finally:
