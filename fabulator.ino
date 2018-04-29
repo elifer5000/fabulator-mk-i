@@ -48,28 +48,22 @@
 unsigned long currentMillis = 0;
 bool mono = false;
 
-Stepper stepper1(X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN);
-Stepper stepper2(Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN);
-Stepper stepper3(Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN);
-Stepper stepper4(E_STEP_PIN, E_DIR_PIN, E_ENABLE_PIN);
+int pins[][6] = {
+  {X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MS1_PIN, X_MS2_PIN, X_MS3_PIN},
+  {Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, -1, -1, -1},
+  {Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, -1, -1, -1},
+  {E_STEP_PIN, E_DIR_PIN, E_ENABLE_PIN, -1, -1, -1}
+};
 
 Stepper* steppers[NUM_STEPPERS];
 
 void setup() {
   Serial.begin(115200);
-
-  steppers[0] = &stepper1;
-  steppers[1] = &stepper2;
-  steppers[2] = &stepper3;
-  steppers[3] = &stepper4;
-
-//  pinMode(X_MS1_PIN, OUTPUT);
-//  pinMode(X_MS2_PIN, OUTPUT);
-//  pinMode(X_MS3_PIN, OUTPUT);  
-
+  
   unsigned long startMillis = millis();
   int i;
   for (i = 0; i < NUM_STEPPERS; i++) {
+    steppers[i] = new Stepper(pins[i][0], pins[i][1], pins[i][2], pins[i][3], pins[i][4], pins[i][5]);
     steppers[i]->setup(startMillis);
   }
   
