@@ -80,95 +80,81 @@ void loop () {
   }
 }
 
+float detuneCalc(float cents) {
+  return pow(2, cents/1200.0);
+}
+
 void handleSerial() {
-  if (Serial.available() >= 3) {
+  if (Serial.available() >= 5) {
     char nlo = Serial.read();
     char lo = Serial.read();
     char hi = Serial.read();
+    char lo2 = Serial.read();
+    char hi2 = Serial.read();
     int note = word(hi, lo);
+    int speed = word(hi2, lo2);
     int n = word(0, nlo);
-    Serial.print("Got: ");
-    Serial.println(note);
+//    Serial.print("Got: ");
+//    Serial.println(note);
 
     bool isNote = n > 0 && n < NUM_STEPPERS + 1;
     int i;
     if (isNote) {
       if (mono) {
         for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setNote(note);
+          steppers[i]->setNote(note, convertVolume(speed));
         }
       } else {
-        steppers[n-1]->setNote(note);
+        steppers[n-1]->setNote(note, convertVolume(speed));
       }
     }
     
     if (n == 10) {
       float period = ((50000 * lo) / 127) / 100;
-      Serial.println(period);
+//      Serial.println(period);
       for (i = 0; i < NUM_STEPPERS; i++) {
           steppers[i]->setPeriod(period);
       }
     }
 
     if (n == 11) {  // Detune up to 1 semitone
-      float f = 0.059463 * ((lo / 127.0) * 2 - 1);
+      float f = detuneCalc(100.0*((lo / 127.0) * 2.0 - 1.0));
       if (mono) {
-        for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setDetune(1 + ((float)i / (NUM_STEPPERS-1))*f);
+        for (i = 1; i < NUM_STEPPERS; i++) {
+          steppers[i]->setDetune(((float)i / (NUM_STEPPERS-1))*f);
         }
       } else {
         for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setDetune(1 + f);
+          steppers[i]->setDetune(f);
         }
       }
 
-      Serial.println(f);
+//      Serial.println(f);
     }
 
     if (n == 12) {  // Detune up to 1 octave
-      float f = 2 * ((lo / 127.0) * 2 - 1);
+      float f = detuneCalc(1200.0*((lo / 127.0) * 2.0 - 1.0));
       if (mono) {
         for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setDetune(1 + ((float)i / (NUM_STEPPERS-1))*f);
+          steppers[i]->setPitchShift(f);
         }
       } else {
         for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setDetune(1 + f);
+          steppers[i]->setPitchShift(f);
         }
       }
 
-      Serial.println(f);
+//      Serial.println(f);
     }
   }
 }
 
-void changeVolume(int val) {
-  switch (val) {
-        case 1: // 1
-          digitalWrite(X_MS1_PIN, LOW);
-          digitalWrite(X_MS2_PIN, LOW);
-          digitalWrite(X_MS3_PIN, LOW);
-          break;
-        case 2: // 1/2
-          digitalWrite(X_MS1_PIN, HIGH);
-          digitalWrite(X_MS2_PIN, LOW);
-          digitalWrite(X_MS3_PIN, LOW);
-          break;
-        case 3: // 1/4
-          digitalWrite(X_MS1_PIN, LOW);
-          digitalWrite(X_MS2_PIN, HIGH);
-          digitalWrite(X_MS3_PIN, LOW);
-          break;
-        case 4: // 1/8
-          digitalWrite(X_MS1_PIN, HIGH);
-          digitalWrite(X_MS2_PIN, HIGH);
-          digitalWrite(X_MS3_PIN, LOW);
-          break;
-        case 5: // 1/16
-          digitalWrite(X_MS1_PIN, HIGH);
-          digitalWrite(X_MS2_PIN, HIGH);
-          digitalWrite(X_MS3_PIN, HIGH);
-          break;
-  }
+int convertVolume(int volume) {
+  if (volume > 90) return 5;
+  if (volume > 65) return 4;
+  if (volume > 50) return 3;
+  if (volume > 30) return 2;
+
+  return 1;
 }
 
