@@ -35,42 +35,6 @@ try:
 except (EOFError, KeyboardInterrupt):
     sys.exit()
 
-
-numMotors = 4
-motor1 = True
-motor2 = True
-motor3 = True
-motor4 = True
-
-def getAvailableMotor():
-	global motor1, motor2, motor3, motor4
-	if motor1:
-		motor1 = False
-		return 1
-	if motor2:
-		motor2 = False
-		return 2
-	if motor3:
-		motor3 = False
-		return 3
-	if motor4:
-		motor4 = False
-		return 4
-
-	return 0
-
-def setMotorAvailable(val):
-	global motor1, motor2, motor3, motor4
-	if val == 1:
-		motor1 = True
-	if val == 2:
-		motor2 = True
-	if val == 3:
-		motor3 = True
-	if val == 4:
-		motor4 = True
-
-active_notes={}
 try:
 	timer = time.time()
 	while True:
@@ -82,34 +46,26 @@ try:
 			print("[%s] @%0.6f %r" % (port_name, timer, message))
 			note = message[1]
 			volume = message[2]
-			if message[0] & 0xF0 == NOTE_ON:
-				freq = pow(2.0, (note - 69) / 12.0) * 440.0   # Hz -> 1/s
+			if message[0] & 0xF0 == NOTE_ON || message[0] & 0xF0 == NOTE_OFF:
+				noteEvent = 1 if message[0] & 0xF0 == NOTE_ON else 2
+				freq = pow(2.0, (note - 69) / 12.0) * 440.0   # Hz -> 1/s - MOVE THIS TO ARDUINO AS WELL
 				speed = int(freq)   # steps / second
 				lobyte = speed & 0xff
 				hibyte = (speed & 0xff00) >> 8
-				motor = getAvailableMotor() & 0xff
 				volLoByte = volume & 0xff
 				volHiByte = (volume & 0xff00) >> 8
 				print(speed)
-				if motor > 0:
-					values = bytearray([motor, lobyte, hibyte, volLoByte, volHiByte])
-					ser.write(values)
-					active_notes[note] = motor
-					# print ser.readline()
-			elif message[0] & 0xF0 == NOTE_OFF:
-				if active_notes.has_key(note):
-					values = bytearray([active_notes[note], 0, 0, 0, 0])
-					setMotorAvailable(active_notes[note])
-					ser.write(values)
-					active_notes.pop(note)
-					# print ser.readline()
+				
+				values = bytearray([noteEvent, lobyte, hibyte, volLoByte, volHiByte])
+				ser.write(values)
+				# print ser.readline()
 			elif message[0] & 0xF0 == CONTROLLER_CHANGE:
 				if message[1] == 21:
-					values = bytearray([10, message[2], 0, 0, 0])
+					values = bytearray([message[1], message[2], 0, 0, 0])
 				elif message[1] == 22:
-					values = bytearray([11, message[2], 0, 0, 0])
+					values = bytearray([message[1], message[2], 0, 0, 0])
 				elif message[1] == 23:
-					values = bytearray([12, message[2], 0, 0, 0])
+					values = bytearray([message[1], message[2], 0, 0, 0])
 
 				ser.write(values)
 				# print ser.readline()

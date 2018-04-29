@@ -3,9 +3,9 @@
 #define X_ENABLE_PIN       38
 #define X_MIN_PIN           3
 #define X_MAX_PIN           2
-#define X_MS1_PIN           4 // TBD
-#define X_MS2_PIN           5  // TBD
-#define X_MS3_PIN           6 // TBD
+#define X_MS1_PIN           4 
+#define X_MS2_PIN           5
+#define X_MS3_PIN           6
 
 #define Y_STEP_PIN         60
 #define Y_DIR_PIN          61
@@ -42,6 +42,7 @@
 #define TEMP_1_PIN          14   // ANALOG NUMBERING
 
 #define NUM_STEPPERS      4
+#define NOTES_BUFFER_SZ      32
 
 #include "Stepper.h"
 
@@ -56,6 +57,82 @@ int pins[][6] = {
 };
 
 Stepper* steppers[NUM_STEPPERS];
+
+class StepperManager {
+private:
+  int numNotes;
+  int numOldNotes;
+  int oldNotesStack[NOTES_BUFFER_SZ];
+  int oldVolumesStack[NOTES_BUFFER_SZ];
+
+public:
+  StepperManager() : numNotes(0), numOldNotes(0) {
+
+  }
+
+  void setNoteOn(int note, int volume) {
+    int i;
+    if (numNotes < NUM_STEPPERS) {
+      // Search for next available motor
+      for (i = 0; i < NUM_STEPPERS; i++) {
+        if (!steppers[i]->getIsActive()) {
+          steppers[i]->setNote(note, volume);
+          numNotes++;
+          break;
+        } 
+      }      
+    } else {
+      // Search for active motor with closest distance
+      int closestDist = 100000;
+      int dist, idx = -1;
+      for (i = 0; i < NUM_STEPPERS; i++) {
+        dist = note - steppers[i]->getNote();
+        dist = abs(dist);
+        if (dist < closestDist) {
+          closestDist = dist;
+          idx = i;
+        }
+      }
+
+      if (numOldNotes < NOTES_BUFFER_SZ) {
+        oldNotesStack[numOldNotes] = steppers[idx]->getNote();
+        oldVolumesStack[numOldNotes++] = steppers[idx]->getVolume();
+      }
+      steppers[idx]->setNote(note, volume);
+    }
+  }
+
+  void setNoteOff(int note) {
+    int i;
+    // Search for motor with this note
+    for (i = 0; i < NUM_STEPPERS; i++) {
+      if (note == steppers[i]->getNote()) {
+        if (numOldNotes > 0) {  // Play old note from stack
+          int oldNote = oldNotesStack[numOldNotes];
+          int oldVolume = oldVolumesStack[numOldNotes--];
+          steppers[i]->setNote(oldNote, oldVolume);
+        } else {  // Turn off motor
+          steppers[i]->setNote(0, 0);
+          numNotes--;
+        }
+        break;
+      }
+    }
+
+    if (i == NUM_STEPPERS) {
+      // No active motor with this note
+      for (i = 0; i < numOldNotes; i++) {
+        if (oldNotesStack[i] == note) {
+          oldNotesStack[i] = 0; // Remove from stack
+          if (i == numOldNotes - 1) numOldNotes--; // If it's last one
+          break;
+        }
+      }
+    }
+  }
+};
+
+StepperManager manager;
 
 void setup() {
   Serial.begin(115200);
@@ -97,19 +174,23 @@ void handleSerial() {
 //    Serial.print("Got: ");
 //    Serial.println(note);
 
-    bool isNote = n > 0 && n < NUM_STEPPERS + 1;
+    bool isNote = n == 1 || n == 2;
     int i;
     if (isNote) {
-      if (mono) {
-        for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setNote(note, convertVolume(speed));
-        }
-      } else {
-        steppers[n-1]->setNote(note, convertVolume(speed));
-      }
+      // if (mono) {
+      //   for (i = 0; i < NUM_STEPPERS; i++) {
+      //     steppers[i]->setNote(note, convertVolume(speed));
+      //   }
+      // } else {
+      //   steppers[n-1]->setNote(note, convertVolume(speed));
+      // }
+      if (n == 1) 
+        manager.setNoteOn(note, convertVolume(speed));
+      else
+        manager.setNoteOff(note);
     }
     
-    if (n == 10) {
+    if (n == 21) {
       float period = ((50000 * lo) / 127) / 100;
 //      Serial.println(period);
       for (i = 0; i < NUM_STEPPERS; i++) {
@@ -117,7 +198,7 @@ void handleSerial() {
       }
     }
 
-    if (n == 11) {  // Detune up to 1 semitone
+    if (n == 22) {  // Detune up to 1 semitone
       float f = detuneCalc(100.0*((lo / 127.0) * 2.0 - 1.0));
       if (mono) {
         for (i = 1; i < NUM_STEPPERS; i++) {
@@ -132,7 +213,7 @@ void handleSerial() {
 //      Serial.println(f);
     }
 
-    if (n == 12) {  // Detune up to 1 octave
+    if (n == 23) {  // Detune up to 1 octave
       float f = detuneCalc(1200.0*((lo / 127.0) * 2.0 - 1.0));
       if (mono) {
         for (i = 0; i < NUM_STEPPERS; i++) {
@@ -150,10 +231,10 @@ void handleSerial() {
 }
 
 int convertVolume(int volume) {
-  if (volume > 90) return 5;
-  if (volume > 65) return 4;
-  if (volume > 50) return 3;
-  if (volume > 30) return 2;
+  if (volume > 64) return 5;
+  if (volume > 32) return 4;
+  if (volume > 16) return 3;
+  if (volume > 8) return 2;
 
   return 1;
 }

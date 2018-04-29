@@ -135,4 +135,16 @@ public:
             break;
     }
   }
+
+  bool getIsActive() {
+    return isActive;
+  }
+
+  int getNote() {
+    return speed;
+  }
+
+  int getVolume() {
+    return volume;
+  }
 };
