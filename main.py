@@ -46,7 +46,7 @@ try:
 			print("[%s] @%0.6f %r" % (port_name, timer, message))
 			note = message[1]
 			volume = message[2]
-			if message[0] & 0xF0 == NOTE_ON || message[0] & 0xF0 == NOTE_OFF:
+			if message[0] & 0xF0 == NOTE_ON or message[0] & 0xF0 == NOTE_OFF:
 				noteEvent = 1 if message[0] & 0xF0 == NOTE_ON else 2
 				freq = pow(2.0, (note - 69) / 12.0) * 440.0   # Hz -> 1/s - MOVE THIS TO ARDUINO AS WELL
 				speed = int(freq)   # steps / second

@@ -80,10 +80,10 @@ public:
           numNotes++;
           break;
         } 
-      }      
+      }    
     } else {
       // Search for active motor with closest distance
-      int closestDist = 100000;
+      int closestDist = 32000;
       int dist, idx = -1;
       for (i = 0; i < NUM_STEPPERS; i++) {
         dist = note - steppers[i]->getNote();
@@ -93,7 +93,7 @@ public:
           idx = i;
         }
       }
-
+      
       if (numOldNotes < NOTES_BUFFER_SZ) {
         oldNotesStack[numOldNotes] = steppers[idx]->getNote();
         oldVolumesStack[numOldNotes++] = steppers[idx]->getVolume();
@@ -108,8 +108,8 @@ public:
     for (i = 0; i < NUM_STEPPERS; i++) {
       if (note == steppers[i]->getNote()) {
         if (numOldNotes > 0) {  // Play old note from stack
-          int oldNote = oldNotesStack[numOldNotes];
-          int oldVolume = oldVolumesStack[numOldNotes--];
+          int oldNote = oldNotesStack[--numOldNotes];
+          int oldVolume = oldVolumesStack[numOldNotes];
           steppers[i]->setNote(oldNote, oldVolume);
         } else {  // Turn off motor
           steppers[i]->setNote(0, 0);
@@ -119,8 +119,7 @@ public:
       }
     }
 
-    if (i == NUM_STEPPERS) {
-      // No active motor with this note
+    if (i == NUM_STEPPERS) { // No active motor with this note
       for (i = 0; i < numOldNotes; i++) {
         if (oldNotesStack[i] == note) {
           oldNotesStack[i] = 0; // Remove from stack
@@ -177,13 +176,6 @@ void handleSerial() {
     bool isNote = n == 1 || n == 2;
     int i;
     if (isNote) {
-      // if (mono) {
-      //   for (i = 0; i < NUM_STEPPERS; i++) {
-      //     steppers[i]->setNote(note, convertVolume(speed));
-      //   }
-      // } else {
-      //   steppers[n-1]->setNote(note, convertVolume(speed));
-      // }
       if (n == 1) 
         manager.setNoteOn(note, convertVolume(speed));
       else
@@ -231,10 +223,10 @@ void handleSerial() {
 }
 
 int convertVolume(int volume) {
-  if (volume > 64) return 5;
-  if (volume > 32) return 4;
-  if (volume > 16) return 3;
-  if (volume > 8) return 2;
+  if (volume > 80) return 5;
+  if (volume > 40) return 4;
+  if (volume > 20) return 3;
+  if (volume > 10) return 2;
 
   return 1;
 }
