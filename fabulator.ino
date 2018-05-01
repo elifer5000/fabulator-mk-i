@@ -15,23 +15,23 @@
 #define Z_STEP_PIN         46
 #define Z_DIR_PIN          48
 #define Z_ENABLE_PIN       62
-#define Z_MS1_PIN           -1 
-#define Z_MS2_PIN           -1
-#define Z_MS3_PIN           -1
+#define Z_MS1_PIN          41 
+#define Z_MS2_PIN          43
+#define Z_MS3_PIN          45
 
 #define E_STEP_PIN         26
 #define E_DIR_PIN          28
 #define E_ENABLE_PIN       24
-#define E_MS1_PIN           -1 
-#define E_MS2_PIN           -1
-#define E_MS3_PIN           -1
+#define E_MS1_PIN          31 
+#define E_MS2_PIN          33
+#define E_MS3_PIN          35
 
 #define Q_STEP_PIN         36
 #define Q_DIR_PIN          34
 #define Q_ENABLE_PIN       30
-#define Q_MS1_PIN           -1 
-#define Q_MS2_PIN           -1
-#define Q_MS3_PIN           -1
+#define Q_MS1_PIN          23 
+#define Q_MS2_PIN          25
+#define Q_MS3_PIN          27
 
 #define SDPOWER            -1
 #define SDSS               53
@@ -257,7 +257,7 @@ void handleSerial() {
     if (n == 22) { 
       float f;
       if (mono) {
-        f = detuneCalc(50.0*((lo / 127.0) * 2.0 - 1.0)); // Detune up to 1/2 semitone
+        f = detuneCalc(33.3*((lo / 127.0) * 2.0 - 1.0)); // Detune up to 1/3 semitone
         for (i = 1; i < NUM_STEPPERS; i++) {
           steppers[i]->setDetune(((float)i / (NUM_STEPPERS-1))*f);
         }
