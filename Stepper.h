@@ -29,6 +29,16 @@ protected:
       }
     }
 
+    void setSpeedAndVolume() {
+      if (useAcceleration) {
+        stepper.setMaxSpeed(speed * speedFactor1 * speedFactor2);
+      } else {
+        stepper.setSpeed(speed * speedFactor1 * speedFactor2);
+      }
+
+       setVolume(volume);
+    }
+
 public:
   Stepper(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t _ms1 = -1, uint8_t _ms2 = -1, uint8_t _ms3 = -1) :
     stepper(AccelStepper::DRIVER, stepPin, dirPin),
@@ -42,7 +52,7 @@ public:
     period(0),
     startMillis(0),
     pulseOn(true),
-    usePulse(true),
+    usePulse(false),
     volume(5) {
     stepper.setPinsInverted(false, false, true);
     stepper.setEnablePin(enablePin);
@@ -77,33 +87,31 @@ public:
   }
 
   // note is in Hz
-  void setNote(int note, int volume) {
-    speed = note;
+  void setNote(int _note, int _volume) {
+    speed = _note;
+    volume = _volume;
     isActive = speed > 0;
     pulseOn = isActive;
     startMillis = millis();
     
-    if (useAcceleration) {
-      stepper.setMaxSpeed(speed * speedFactor1 * speedFactor2);
-    } else {
-      stepper.setSpeed(speed * speedFactor1 * speedFactor2);
-    }
-
-     setVolume(volume);
+    setSpeedAndVolume();
   }
 
   void setDetune(float detune) {
     speedFactor1 = detune;
-    setNote(speed, volume);
+    setSpeedAndVolume();
   }
 
   void setPitchShift(float detune) {
     speedFactor2 = detune;
-    setNote(speed, volume);
+    setSpeedAndVolume();
   }
 
   void setPeriod(unsigned long p) {
     period = p;
+    if (!usePulse) pulseOn = true;
+    
+    usePulse = p > 0;
   }
 
   void setVolume(int val) {

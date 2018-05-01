@@ -1,8 +1,6 @@
 #define X_STEP_PIN         54
 #define X_DIR_PIN          55
 #define X_ENABLE_PIN       38
-#define X_MIN_PIN           3
-#define X_MAX_PIN           2
 #define X_MS1_PIN           4 
 #define X_MS2_PIN           5
 #define X_MS3_PIN           6
@@ -10,22 +8,30 @@
 #define Y_STEP_PIN         60
 #define Y_DIR_PIN          61
 #define Y_ENABLE_PIN       56
-#define Y_MIN_PIN          14
-#define Y_MAX_PIN          15
+#define Y_MS1_PIN          40 
+#define Y_MS2_PIN          42
+#define Y_MS3_PIN          44
 
 #define Z_STEP_PIN         46
 #define Z_DIR_PIN          48
 #define Z_ENABLE_PIN       62
-#define Z_MIN_PIN          18
-#define Z_MAX_PIN          19
+#define Z_MS1_PIN           -1 
+#define Z_MS2_PIN           -1
+#define Z_MS3_PIN           -1
 
 #define E_STEP_PIN         26
 #define E_DIR_PIN          28
 #define E_ENABLE_PIN       24
+#define E_MS1_PIN           -1 
+#define E_MS2_PIN           -1
+#define E_MS3_PIN           -1
 
 #define Q_STEP_PIN         36
 #define Q_DIR_PIN          34
 #define Q_ENABLE_PIN       30
+#define Q_MS1_PIN           -1 
+#define Q_MS2_PIN           -1
+#define Q_MS3_PIN           -1
 
 #define SDPOWER            -1
 #define SDSS               53
@@ -41,7 +47,7 @@
 #define TEMP_0_PIN          13   // ANALOG NUMBERING
 #define TEMP_1_PIN          14   // ANALOG NUMBERING
 
-#define NUM_STEPPERS      4
+#define NUM_STEPPERS      5
 #define NOTES_BUFFER_SZ      32
 
 #include "Stepper.h"
@@ -51,9 +57,10 @@ bool mono = false;
 
 int pins[][6] = {
   {X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MS1_PIN, X_MS2_PIN, X_MS3_PIN},
-  {Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, -1, -1, -1},
-  {Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, -1, -1, -1},
-  {E_STEP_PIN, E_DIR_PIN, E_ENABLE_PIN, -1, -1, -1}
+  {Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_MS1_PIN, Y_MS2_PIN, Y_MS3_PIN},
+  {Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_MS1_PIN, Z_MS2_PIN, Z_MS3_PIN},
+  {E_STEP_PIN, E_DIR_PIN, E_ENABLE_PIN, E_MS1_PIN, E_MS2_PIN, E_MS3_PIN},
+  {Q_STEP_PIN, Q_DIR_PIN, Q_ENABLE_PIN, Q_MS1_PIN, Q_MS2_PIN, Q_MS3_PIN}
 };
 
 Stepper* steppers[NUM_STEPPERS];
@@ -70,7 +77,7 @@ public:
 
   }
 
-  void setNoteOn(int note, int volume) {
+  void setPolyNoteOn(int note, int volume) {
     int i;
     if (numNotes < NUM_STEPPERS) {
       // Search for next available motor
@@ -101,16 +108,16 @@ public:
       steppers[idx]->setNote(note, volume);
     }
   }
-
-  void setNoteOff(int note) {
-    int i;
+  
+  void setPolyNoteOff(int note) {
+    int i, j, oldNote, oldVolume;
     // Search for motor with this note
     for (i = 0; i < NUM_STEPPERS; i++) {
       if (note == steppers[i]->getNote()) {
         if (numOldNotes > 0) {  // Play old note from stack
-          int oldNote = oldNotesStack[--numOldNotes];
-          int oldVolume = oldVolumesStack[numOldNotes];
-          steppers[i]->setNote(oldNote, oldVolume);
+          oldNote = oldNotesStack[--numOldNotes];
+          oldVolume = oldVolumesStack[numOldNotes];
+          steppers[i]->setNote(oldNote, oldVolume);       
         } else {  // Turn off motor
           steppers[i]->setNote(0, 0);
           numNotes--;
@@ -122,12 +129,69 @@ public:
     if (i == NUM_STEPPERS) { // No active motor with this note
       for (i = 0; i < numOldNotes; i++) {
         if (oldNotesStack[i] == note) {
-          oldNotesStack[i] = 0; // Remove from stack
-          if (i == numOldNotes - 1) numOldNotes--; // If it's last one
+          // Remove from stack
+          numOldNotes--;
+          for (j = i; j < numOldNotes; j++) {
+            oldNotesStack[j] = oldNotesStack[j+1];
+            oldVolumesStack[j] = oldVolumesStack[j+1];
+          }
           break;
         }
       }
     }
+  }
+
+  void setMonoNoteOn(int note, int volume) {
+    int i;
+
+    if (steppers[0]->getIsActive() && numOldNotes < NOTES_BUFFER_SZ) {
+      oldNotesStack[numOldNotes] = steppers[0]->getNote();
+      oldVolumesStack[numOldNotes++] = steppers[0]->getVolume();
+    }
+      
+    for (i = 0; i < NUM_STEPPERS; i++) {
+      steppers[i]->setNote(note, volume);
+    }  
+  }
+
+  void setMonoNoteOff(int note) {
+    int i, j, oldNote, oldVolume;
+    
+    if (note == steppers[0]->getNote()) { // Is this note currently playing?
+      if (numOldNotes > 0) {  // Play old note from stack
+        oldNote = oldNotesStack[--numOldNotes];
+        oldVolume = oldVolumesStack[numOldNotes];
+        for (i = 0; i < NUM_STEPPERS; i++) {
+          steppers[i]->setNote(oldNote, oldVolume);
+        }
+      } else {  // Turn off motors
+        for (i = 0; i < NUM_STEPPERS; i++) {
+          steppers[i]->setNote(0, 0);
+        }
+      }
+    } else {
+      for (i = 0; i < numOldNotes; i++) {
+        if (oldNotesStack[i] == note) {
+          // Remove from stack
+          numOldNotes--;
+          for (j = i; j < numOldNotes; j++) {
+            oldNotesStack[j] = oldNotesStack[j+1];
+            oldVolumesStack[j] = oldVolumesStack[j+1];
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  void setNoteOn(int note, int volume) {
+    if (mono) setMonoNoteOn(note, volume);
+    else setPolyNoteOn(note, volume);
+  }
+
+  void setNoteOff(int note) {
+    if (mono) setMonoNoteOff(note);
+    else setPolyNoteOff(note);
   }
 };
 
@@ -190,13 +254,15 @@ void handleSerial() {
       }
     }
 
-    if (n == 22) {  // Detune up to 1 semitone
-      float f = detuneCalc(100.0*((lo / 127.0) * 2.0 - 1.0));
+    if (n == 22) { 
+      float f;
       if (mono) {
+        f = detuneCalc(50.0*((lo / 127.0) * 2.0 - 1.0)); // Detune up to 1/2 semitone
         for (i = 1; i < NUM_STEPPERS; i++) {
           steppers[i]->setDetune(((float)i / (NUM_STEPPERS-1))*f);
         }
       } else {
+        f = detuneCalc(100.0*((lo / 127.0) * 2.0 - 1.0)); // Detune up to 1 semitone
         for (i = 0; i < NUM_STEPPERS; i++) {
           steppers[i]->setDetune(f);
         }
