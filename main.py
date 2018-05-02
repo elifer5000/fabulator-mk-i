@@ -44,33 +44,10 @@ try:
 			message, deltatime = msg
 			timer += deltatime
 			print("[%s] @%0.6f %r" % (port_name, timer, message))
-			note = message[1]
-			volume = message[2]
-			if message[0] & 0xF0 == NOTE_ON or message[0] & 0xF0 == NOTE_OFF:
-				noteEvent = 1 if message[0] & 0xF0 == NOTE_ON else 2
-				freq = pow(2.0, (note - 69) / 12.0) * 440.0   # Hz -> 1/s - MOVE THIS TO ARDUINO AS WELL
-				speed = int(freq)   # steps / second
-				lobyte = speed & 0xff
-				hibyte = (speed & 0xff00) >> 8
-				volLoByte = volume & 0xff
-				volHiByte = (volume & 0xff00) >> 8
-				print(speed)
-				
-				values = bytearray([noteEvent, lobyte, hibyte, volLoByte, volHiByte])
-				ser.write(values)
-				# print ser.readline()
-			elif message[0] & 0xF0 == CONTROLLER_CHANGE:
-				if message[1] == 21:
-					values = bytearray([message[1], message[2], 0, 0, 0])
-				elif message[1] == 22:
-					values = bytearray([message[1], message[2], 0, 0, 0])
-				elif message[1] == 23:
-					values = bytearray([message[1], message[2], 0, 0, 0])
 
-				ser.write(values)
-				# print ser.readline()
-				# print ser.readline()
-
+			values = bytearray([message[0], message[1], message[2]])
+			ser.write(message)
+			# print ser.readline()
 
 		# time.sleep(0.005)
 except KeyboardInterrupt:

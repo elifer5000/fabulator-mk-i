@@ -1,3 +1,4 @@
+// Arduino PINS
 #define X_STEP_PIN         54
 #define X_DIR_PIN          55
 #define X_ENABLE_PIN       38
@@ -46,6 +47,11 @@
 #define HEATER_1_PIN       8
 #define TEMP_0_PIN          13   // ANALOG NUMBERING
 #define TEMP_1_PIN          14   // ANALOG NUMBERING
+
+// MIDI constants
+#define NOTE_OFF            0x80
+#define NOTE_ON             0x90
+#define CONTROLLER_CHANGE   0xB0
 
 #define NUM_STEPPERS      5
 #define NOTES_BUFFER_SZ      32
@@ -220,70 +226,63 @@ void loop () {
   }
 }
 
-float detuneCalc(float cents) {
-  return pow(2, cents/1200.0);
+float detuneCalc(float maxDetune, int val) {
+  float cents = maxDetune*((val / 127.0) * 2.0 - 1.0);
+
+  return pow(2.0, cents/1200.0);
 }
 
+int freqCalc(int note) {
+  return pow(2.0, (note - 69) / 12.0) * 440.0;
+} 
+
 void handleSerial() {
-  if (Serial.available() >= 5) {
-    char nlo = Serial.read();
-    char lo = Serial.read();
-    char hi = Serial.read();
-    char lo2 = Serial.read();
-    char hi2 = Serial.read();
-    int note = word(hi, lo);
-    int speed = word(hi2, lo2);
-    int n = word(0, nlo);
-//    Serial.print("Got: ");
-//    Serial.println(note);
-
-    bool isNote = n == 1 || n == 2;
-    int i;
-    if (isNote) {
-      if (n == 1) 
-        manager.setNoteOn(note, convertVolume(speed));
-      else
-        manager.setNoteOff(note);
-    }
+  if (Serial.available() >= 3) {
+    byte m0 = Serial.read();
+    byte m1 = Serial.read();
+    byte m2 = Serial.read();
     
-    if (n == 21) {
-      float period = ((50000 * lo) / 127) / 100;
-//      Serial.println(period);
-      for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setPeriod(period);
+//    Serial.print("Got: ");
+//    Serial.print((m0 & 0xF0) == NOTE_ON);
+//    Serial.print("   ");
+//    Serial.print(m1);
+//    Serial.print(" ");
+//    Serial.println(m2); 
+
+    int i;
+    float f;
+    if ((m0 & 0xF0) == NOTE_ON)
+      manager.setNoteOn(freqCalc(m1), convertVolume(m2));
+    else if ((m0 & 0xF0) == NOTE_OFF)
+      manager.setNoteOff(freqCalc(m1));
+    else if ((m0 & 0xF0) == CONTROLLER_CHANGE) {
+      switch (m1) {
+        case 21:
+          f = ((50000 * m2) / 127) / 100;  // Up to 500ms
+          for (i = 0; i < NUM_STEPPERS; i++) {
+            steppers[i]->setPeriod(f);
+          }
+          break;
+        case 22:
+          if (mono) {
+            f = detuneCalc(33.3, m2); // Detune up to 1/3 semitone
+            for (i = 1; i < NUM_STEPPERS; i++) {
+              steppers[i]->setDetune(((float)i / (NUM_STEPPERS-1))*f);
+            }
+          } else {
+            f = detuneCalc(100.0, m2); // Detune up to 1 semitone
+            for (i = 0; i < NUM_STEPPERS; i++) {
+              steppers[i]->setDetune(f);
+            }
+          }
+          break;
+        case 23:
+          f = detuneCalc(1200.0, m2);  // Detune up to 1 octave
+          for (i = 0; i < NUM_STEPPERS; i++) {
+            steppers[i]->setPitchShift(f);
+          }           
+          break;
       }
-    }
-
-    if (n == 22) { 
-      float f;
-      if (mono) {
-        f = detuneCalc(33.3*((lo / 127.0) * 2.0 - 1.0)); // Detune up to 1/3 semitone
-        for (i = 1; i < NUM_STEPPERS; i++) {
-          steppers[i]->setDetune(((float)i / (NUM_STEPPERS-1))*f);
-        }
-      } else {
-        f = detuneCalc(100.0*((lo / 127.0) * 2.0 - 1.0)); // Detune up to 1 semitone
-        for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setDetune(f);
-        }
-      }
-
-//      Serial.println(f);
-    }
-
-    if (n == 23) {  // Detune up to 1 octave
-      float f = detuneCalc(1200.0*((lo / 127.0) * 2.0 - 1.0));
-      if (mono) {
-        for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setPitchShift(f);
-        }
-      } else {
-        for (i = 0; i < NUM_STEPPERS; i++) {
-          steppers[i]->setPitchShift(f);
-        }
-      }
-
-//      Serial.println(f);
     }
   }
 }
