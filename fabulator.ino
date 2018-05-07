@@ -53,13 +53,11 @@
 #define NOTE_ON             0x90
 #define CONTROLLER_CHANGE   0xB0
 
-#define NUM_STEPPERS      5
 #define NOTES_BUFFER_SZ      32
 
 #include "Stepper.h"
 
 unsigned long currentMillis = 0;
-bool mono = false;
 
 int pins[][6] = {
   {X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MS1_PIN, X_MS2_PIN, X_MS3_PIN},
@@ -69,25 +67,58 @@ int pins[][6] = {
   {Q_STEP_PIN, Q_DIR_PIN, Q_ENABLE_PIN, Q_MS1_PIN, Q_MS2_PIN, Q_MS3_PIN}
 };
 
-Stepper* steppers[NUM_STEPPERS];
+float detuneCalc(float maxDetune, int val) {
+  float cents = maxDetune*((val / 127.0) * 2.0 - 1.0);
+
+  return pow(2.0, cents/1200.0);
+}
+
+int freqCalc(int note) {
+  return pow(2.0, (note - 69) / 12.0) * 440.0;
+}
+
+int convertVolume(int volume) {
+  if (volume > 80) return 5;
+  if (volume > 40) return 4;
+  if (volume > 20) return 3;
+  if (volume > 10) return 2;
+
+  return 1;
+}
 
 class StepperManager {
 private:
+  Stepper** steppers;
+  int numSteppers;
   int numNotes;
   int numOldNotes;
   int oldNotesStack[NOTES_BUFFER_SZ];
   int oldVolumesStack[NOTES_BUFFER_SZ];
+  bool isMono;
 
 public:
-  StepperManager() : numNotes(0), numOldNotes(0) {
+  StepperManager(int _numSteppers) : numSteppers(_numSteppers), numNotes(0), numOldNotes(0), isMono(false) {
+    steppers = new Stepper*[numSteppers];
+  }
 
+  void setup(int startMillis, int pins[][6]) {
+    for (int i = 0; i < numSteppers; i++) {
+      steppers[i] = new Stepper(pins[i][0], pins[i][1], pins[i][2], pins[i][3], pins[i][4], pins[i][5]);
+      steppers[i]->setup(startMillis);
+    }
+  }
+
+  void run(int currentMillis) {
+    for (int i = 0; i < numSteppers; i++) {
+      steppers[i]->run(currentMillis);
+    }
   }
 
   void setPolyNoteOn(int note, int volume) {
     int i;
-    if (numNotes < NUM_STEPPERS) {
+    if (numNotes < numSteppers) {
       // Search for next available motor
-      for (i = 0; i < NUM_STEPPERS; i++) {
+      for (i = 0; i < numSteppers; i++) {
         if (!steppers[i]->getIsActive()) {
           steppers[i]->setNote(note, volume);
           numNotes++;
@@ -98,7 +129,7 @@ public:
       // Search for active motor with closest distance
       int closestDist = 32000;
       int dist, idx = -1;
-      for (i = 0; i < NUM_STEPPERS; i++) {
+      for (i = 0; i < numSteppers; i++) {
         dist = note - steppers[i]->getNote();
         dist = abs(dist);
         if (dist < closestDist) {
@@ -118,7 +149,7 @@ public:
   void setPolyNoteOff(int note) {
     int i, j, oldNote, oldVolume;
     // Search for motor with this note
-    for (i = 0; i < NUM_STEPPERS; i++) {
+    for (i = 0; i < numSteppers; i++) {
       if (note == steppers[i]->getNote()) {
         if (numOldNotes > 0) {  // Play old note from stack
           oldNote = oldNotesStack[--numOldNotes];
@@ -132,7 +163,7 @@ public:
       }
     }
 
-    if (i == NUM_STEPPERS) { // No active motor with this note
+    if (i == numSteppers) { // No active motor with this note
       for (i = 0; i < numOldNotes; i++) {
         if (oldNotesStack[i] == note) {
           // Remove from stack
@@ -155,7 +186,7 @@ public:
       oldVolumesStack[numOldNotes++] = steppers[0]->getVolume();
     }
       
-    for (i = 0; i < NUM_STEPPERS; i++) {
+    for (i = 0; i < numSteppers; i++) {
       steppers[i]->setNote(note, volume);
     }  
   }
@@ -167,11 +198,11 @@ public:
       if (numOldNotes > 0) {  // Play old note from stack
         oldNote = oldNotesStack[--numOldNotes];
         oldVolume = oldVolumesStack[numOldNotes];
-        for (i = 0; i < NUM_STEPPERS; i++) {
+        for (i = 0; i < numSteppers; i++) {
           steppers[i]->setNote(oldNote, oldVolume);
         }
       } else {  // Turn off motors
-        for (i = 0; i < NUM_STEPPERS; i++) {
+        for (i = 0; i < numSteppers; i++) {
           steppers[i]->setNote(0, 0);
         }
       }
@@ -191,27 +222,61 @@ public:
   }
 
   void setNoteOn(int note, int volume) {
-    if (mono) setMonoNoteOn(note, volume);
+    if (isMono) setMonoNoteOn(note, volume);
     else setPolyNoteOn(note, volume);
   }
 
   void setNoteOff(int note) {
-    if (mono) setMonoNoteOff(note);
+    if (isMono) setMonoNoteOff(note);
     else setPolyNoteOff(note);
+  }
+
+  void handleMidi(byte m0, byte m1, byte m2) {
+    int i;
+    float f;
+    if ((m0 & 0xF0) == NOTE_ON)
+      setNoteOn(freqCalc(m1), convertVolume(m2));
+    else if ((m0 & 0xF0) == NOTE_OFF)
+      setNoteOff(freqCalc(m1));
+    else if ((m0 & 0xF0) == CONTROLLER_CHANGE) {
+      switch (m1) {
+        case 21:
+          f = ((50000 * m2) / 127) / 100;  // Up to 500ms
+          for (i = 0; i < numSteppers; i++) {
+            steppers[i]->setPeriod(f);
+          }
+          break;
+        case 22:
+          if (isMono) {
+            f = detuneCalc(33.3, m2); // Detune up to 1/3 semitone
+            for (i = 1; i < numSteppers; i++) {
+              steppers[i]->setDetune(((float)i / (numSteppers-1))*f);
+            }
+          } else {
+            f = detuneCalc(100.0, m2); // Detune up to 1 semitone
+            for (i = 0; i < numSteppers; i++) {
+              steppers[i]->setDetune(f);
+            }
+          }
+          break;
+        case 23:
+          f = detuneCalc(1200.0, m2);  // Detune up to 1 octave
+          for (i = 0; i < numSteppers; i++) {
+            steppers[i]->setPitchShift(f);
+          }           
+          break;
+      }
+    }
   }
 };
 
-StepperManager manager;
+StepperManager manager(5);
 
 void setup() {
   Serial.begin(115200);
   
   unsigned long startMillis = millis();
-  int i;
-  for (i = 0; i < NUM_STEPPERS; i++) {
-    steppers[i] = new Stepper(pins[i][0], pins[i][1], pins[i][2], pins[i][3], pins[i][4], pins[i][5]);
-    steppers[i]->setup(startMillis);
-  }
+  manager.setup(startMillis, pins);
   
   Serial.println("Ready");
 }
@@ -220,21 +285,8 @@ void loop () {
   currentMillis = millis();
   handleSerial();
 
-  int i;
-  for (i = 0; i < NUM_STEPPERS; i++) {
-    steppers[i]->run(currentMillis);
-  }
+  manager.run(currentMillis);
 }
-
-float detuneCalc(float maxDetune, int val) {
-  float cents = maxDetune*((val / 127.0) * 2.0 - 1.0);
-
-  return pow(2.0, cents/1200.0);
-}
-
-int freqCalc(int note) {
-  return pow(2.0, (note - 69) / 12.0) * 440.0;
-} 
 
 void handleSerial() {
   if (Serial.available() >= 3) {
@@ -249,50 +301,9 @@ void handleSerial() {
 //    Serial.print(" ");
 //    Serial.println(m2); 
 
-    int i;
-    float f;
-    if ((m0 & 0xF0) == NOTE_ON)
-      manager.setNoteOn(freqCalc(m1), convertVolume(m2));
-    else if ((m0 & 0xF0) == NOTE_OFF)
-      manager.setNoteOff(freqCalc(m1));
-    else if ((m0 & 0xF0) == CONTROLLER_CHANGE) {
-      switch (m1) {
-        case 21:
-          f = ((50000 * m2) / 127) / 100;  // Up to 500ms
-          for (i = 0; i < NUM_STEPPERS; i++) {
-            steppers[i]->setPeriod(f);
-          }
-          break;
-        case 22:
-          if (mono) {
-            f = detuneCalc(33.3, m2); // Detune up to 1/3 semitone
-            for (i = 1; i < NUM_STEPPERS; i++) {
-              steppers[i]->setDetune(((float)i / (NUM_STEPPERS-1))*f);
-            }
-          } else {
-            f = detuneCalc(100.0, m2); // Detune up to 1 semitone
-            for (i = 0; i < NUM_STEPPERS; i++) {
-              steppers[i]->setDetune(f);
-            }
-          }
-          break;
-        case 23:
-          f = detuneCalc(1200.0, m2);  // Detune up to 1 octave
-          for (i = 0; i < NUM_STEPPERS; i++) {
-            steppers[i]->setPitchShift(f);
-          }           
-          break;
-      }
-    }
+    manager.handleMidi(m0, m1, m2);
   }
 }
 
-int convertVolume(int volume) {
-  if (volume > 80) return 5;
-  if (volume > 40) return 4;
-  if (volume > 20) return 3;
-  if (volume > 10) return 2;
 
-  return 1;
-}
 
