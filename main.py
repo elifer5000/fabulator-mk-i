@@ -23,7 +23,6 @@ from rtmidi.midiutil import open_midiinput
 from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, CONTROLLER_CHANGE
 
 ser = serial.Serial('/dev/tty.usbmodem1411', 115200)
-print ser.readline()
 
 # Prompts user for MIDI input port, unless a valid port number or name
 # is given as the first argument on the command line.

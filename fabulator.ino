@@ -59,9 +59,15 @@
 
 unsigned long currentMillis = 0;
 
-int pins[][6] = {
-  {X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MS1_PIN, X_MS2_PIN, X_MS3_PIN},
-  {Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_MS1_PIN, Y_MS2_PIN, Y_MS3_PIN},
+int pins1[][6] = {
+  {X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MS1_PIN, X_MS2_PIN, X_MS3_PIN}
+};
+
+int pins2[][6] = {
+  {Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_MS1_PIN, Y_MS2_PIN, Y_MS3_PIN}
+};
+
+int pins3[][6] = {
   {Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_MS1_PIN, Z_MS2_PIN, Z_MS3_PIN},
   {E_STEP_PIN, E_DIR_PIN, E_ENABLE_PIN, E_MS1_PIN, E_MS2_PIN, E_MS3_PIN},
   {Q_STEP_PIN, Q_DIR_PIN, Q_ENABLE_PIN, Q_MS1_PIN, Q_MS2_PIN, Q_MS3_PIN}
@@ -270,22 +276,26 @@ public:
   }
 };
 
-StepperManager manager(5);
+StepperManager manager1(1);
+StepperManager manager2(1);
+StepperManager manager3(3);
 
 void setup() {
   Serial.begin(115200);
   
   unsigned long startMillis = millis();
-  manager.setup(startMillis, pins);
-  
-  Serial.println("Ready");
+  manager1.setup(startMillis, pins1);
+  manager2.setup(startMillis, pins2);
+  manager3.setup(startMillis, pins3);
 }
 
 void loop () {
   currentMillis = millis();
   handleSerial();
 
-  manager.run(currentMillis);
+  manager1.run(currentMillis);
+  manager2.run(currentMillis);
+  manager3.run(currentMillis);
 }
 
 void handleSerial() {
@@ -301,7 +311,17 @@ void handleSerial() {
 //    Serial.print(" ");
 //    Serial.println(m2); 
 
-    manager.handleMidi(m0, m1, m2);
+    switch ((m0 & 0xF) + 1) {
+      case 1:
+        manager1.handleMidi(m0, m1, m2);
+        break;
+      case 2:
+        manager2.handleMidi(m0, m1, m2);
+        break;
+      case 3:
+        manager3.handleMidi(m0, m1, m2);
+        break;
+    }
   }
 }
 
