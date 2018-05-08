@@ -53,6 +53,7 @@
 #define NOTE_ON             0x90
 #define CONTROLLER_CHANGE   0xB0
 
+#define NUM_MANAGERS        3
 #define NOTES_BUFFER_SZ      32
 
 #include "Stepper.h"
@@ -276,26 +277,25 @@ public:
   }
 };
 
-StepperManager manager1(1);
-StepperManager manager2(1);
-StepperManager manager3(3);
+StepperManager manager[NUM_MANAGERS] = { StepperManager(1), StepperManager(1), StepperManager(3) };
 
 void setup() {
   Serial.begin(115200);
   
   unsigned long startMillis = millis();
-  manager1.setup(startMillis, pins1);
-  manager2.setup(startMillis, pins2);
-  manager3.setup(startMillis, pins3);
+  manager[0].setup(startMillis, pins1);
+  manager[1].setup(startMillis, pins2);
+  manager[2].setup(startMillis, pins3);
 }
 
+int l;
 void loop () {
   currentMillis = millis();
   handleSerial();
 
-  manager1.run(currentMillis);
-  manager2.run(currentMillis);
-  manager3.run(currentMillis);
+  for (l = 0; l < NUM_MANAGERS; l++) {
+    manager[l].run(currentMillis);
+  }
 }
 
 void handleSerial() {
@@ -305,23 +305,15 @@ void handleSerial() {
     byte m2 = Serial.read();
     
 //    Serial.print("Got: ");
-//    Serial.print((m0 & 0xF0) == NOTE_ON);
+//    Serial.println((m0 & 0xF));
 //    Serial.print("   ");
 //    Serial.print(m1);
 //    Serial.print(" ");
 //    Serial.println(m2); 
 
-    switch ((m0 & 0xF) + 1) {
-      case 1:
-        manager1.handleMidi(m0, m1, m2);
-        break;
-      case 2:
-        manager2.handleMidi(m0, m1, m2);
-        break;
-      case 3:
-        manager3.handleMidi(m0, m1, m2);
-        break;
-    }
+    byte channel = (m0 & 0xF);
+    if (channel < NUM_MANAGERS)
+      manager[channel].handleMidi(m0, m1, m2);
   }
 }
 
