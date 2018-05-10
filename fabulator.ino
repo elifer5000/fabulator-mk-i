@@ -31,7 +31,7 @@ void handleSerial() {
     byte m2 = Serial.read();
     
 //    Serial.print("Got: ");
-//    Serial.println((m0 & 0xF));
+//    Serial.print(m0);
 //    Serial.print("   ");
 //    Serial.print(m1);
 //    Serial.print(" ");

@@ -1,5 +1,15 @@
 #include "AccelStepper.h"
 
+float detuneCalc(float maxDetune, int val) {
+  float cents = maxDetune*((val / 127.0) * 2.0 - 1.0);
+
+  return pow(2.0, cents/1200.0);
+}
+
+int freqCalc(int note) {
+  return pow(2.0, (note - 69) / 12.0) * 440.0;
+}
+
 class Stepper {
 protected:
     AccelStepper stepper;
@@ -116,31 +126,31 @@ public:
 
   void setVolume(int val) {
     switch (val) {
-          case 5: // 1
-            digitalWrite(ms1, LOW);
-            digitalWrite(ms2, LOW);
-            digitalWrite(ms3, LOW);
-            break;
-          case 4: // 1/2
-            digitalWrite(ms1, HIGH);
-            digitalWrite(ms2, LOW);
-            digitalWrite(ms3, LOW);
-            break;
-          case 3: // 1/4
-            digitalWrite(ms1, LOW);
-            digitalWrite(ms2, HIGH);
-            digitalWrite(ms3, LOW);
-            break;
-          case 2: // 1/8
-            digitalWrite(ms1, HIGH);
-            digitalWrite(ms2, HIGH);
-            digitalWrite(ms3, LOW);
-            break;
-          case 1: // 1/16
-            digitalWrite(ms1, HIGH);
-            digitalWrite(ms2, HIGH);
-            digitalWrite(ms3, HIGH);
-            break;
+      case 5: // 1
+        digitalWrite(ms1, LOW);
+        digitalWrite(ms2, LOW);
+        digitalWrite(ms3, LOW);
+        break;
+      case 4: // 1/2
+        digitalWrite(ms1, HIGH);
+        digitalWrite(ms2, LOW);
+        digitalWrite(ms3, LOW);
+        break;
+      case 3: // 1/4
+        digitalWrite(ms1, LOW);
+        digitalWrite(ms2, HIGH);
+        digitalWrite(ms3, LOW);
+        break;
+      case 2: // 1/8
+        digitalWrite(ms1, HIGH);
+        digitalWrite(ms2, HIGH);
+        digitalWrite(ms3, LOW);
+        break;
+      case 1: // 1/16
+        digitalWrite(ms1, HIGH);
+        digitalWrite(ms2, HIGH);
+        digitalWrite(ms3, HIGH);
+        break;
     }
   }
 
