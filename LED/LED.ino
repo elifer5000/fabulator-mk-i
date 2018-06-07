@@ -155,16 +155,16 @@ LED led1(RED_PIN_1, GREEN_PIN_1, BLUE_PIN_1);
 
 void setup() {
   Serial2.begin(115200); // Communicates with stepper motor
-  
+  // Serial.begin(9600);
   led1.setup();
 }
 
 void loop() {
   if (Serial2.available() >= 4) {
-    byte ledNumber = Serial.read();  // LED number
-    byte freqHi = Serial.read();  // Freq hi
-    byte freqLo = Serial.read();  // Freq lo
-    byte volume = Serial.read();  // Volume
+    byte ledNumber = Serial2.read();  // LED number
+    byte freqHi = Serial2.read();  // Freq hi
+    byte freqLo = Serial2.read();  // Freq lo
+    byte volume = Serial2.read();  // Volume
     int freq = word(freqHi, freqLo);
 
     int lightWavelength = convertSoundFreqToLightWavelength(freq);
@@ -172,6 +172,7 @@ void loop() {
 
     if (ledNumber == 1) {
       led1.setFactor(volume);
+      // Serial.println(volume);
       led1.setColor(globalCol.r, globalCol.g, globalCol.b);
     }
   }
