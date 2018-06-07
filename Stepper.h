@@ -1,9 +1,21 @@
 #include "AccelStepper.h"
 
+// Linear version - good between -100 and 100 cents
+// maxDetune is between -1 and 1 (corresponding to -100 and 100 cents)
+float detuneCalcApprox(float maxDetune, int val) {
+  float cents = maxDetune*((val / 127.0) * 2.0 - 1.0);
+
+  if (cents > 0) 
+    return 1 + 0.059463094*cents;
+
+  return 1 + 0.056125687*cents;
+}
+
+// Returns between -12 and 12
 float detuneCalc(float maxDetune, int val) {
   float cents = maxDetune*((val / 127.0) * 2.0 - 1.0);
 
-  return pow(2.0, cents/1200.0);
+  return pow(2.0, cents/12.0);
 }
 
 int freqCalc(int note) {
@@ -51,19 +63,20 @@ protected:
 
 public:
   Stepper(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t _ms1 = -1, uint8_t _ms2 = -1, uint8_t _ms3 = -1) :
-    stepper(AccelStepper::DRIVER, stepPin, dirPin),
-    ms1(_ms1), ms2(_ms2), ms3(_ms3),  
-    isActive(false),
-    useAcceleration(false),
-    speed(0),
-    speedFactor1(1.0),
-    speedFactor2(1.0),
-    acceleration(10000),
-    period(0),
-    startMillis(0),
-    pulseOn(true),
-    usePulse(false),
-    volume(5) {
+      stepper(AccelStepper::DRIVER, stepPin, dirPin),
+      ms1(_ms1), ms2(_ms2), ms3(_ms3),  
+      isActive(false),
+      useAcceleration(false),
+      speed(0),
+      speedFactor1(1.0),
+      speedFactor2(1.0),
+      acceleration(10000),
+      period(0),
+      startMillis(0),
+      pulseOn(true),
+      usePulse(false),
+      volume(5)
+  {
     stepper.setPinsInverted(false, false, true);
     stepper.setEnablePin(enablePin);
 

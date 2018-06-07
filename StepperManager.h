@@ -1,8 +1,3 @@
-// MIDI constants
-#define NOTE_OFF            0x80
-#define NOTE_ON             0x90
-#define CONTROLLER_CHANGE   0xB0
-
 #define NOTES_BUFFER_SZ      32
 
 int convertVolume(int volume) {
@@ -149,6 +144,15 @@ public:
     }
   }
 
+  void setAllNotesOff() {
+    int i;
+    for (i = 0; i < numSteppers; i++) {
+      steppers[i]->setNote(0, 0);
+    }
+
+    numOldNotes = 0;
+  }
+
   void setNoteOn(int note, int volume) {
     if (isMono) setMonoNoteOn(note, volume);
     else setPolyNoteOn(note, volume);
@@ -159,41 +163,46 @@ public:
     else setPolyNoteOff(note);
   }
 
-  void handleMidi(byte m0, byte m1, byte m2) {
+  void handleNoteOn(byte pitch, byte velocity) {
+    setNoteOn(freqCalc(pitch), convertVolume(velocity));
+  }
+
+  void handleNoteOff(byte pitch) {
+    setNoteOff(freqCalc(pitch));
+  }
+
+  void handleControlChange(byte number, byte value) {
     int i;
     float f;
-    if ((m0 & 0xF0) == NOTE_ON)
-      setNoteOn(freqCalc(m1), convertVolume(m2));
-    else if ((m0 & 0xF0) == NOTE_OFF)
-      setNoteOff(freqCalc(m1));
-    else if ((m0 & 0xF0) == CONTROLLER_CHANGE) {
-      switch (m1) {
-        case 21:
-          f = ((50000 * m2) / 127) / 100;  // Up to 500ms
-          for (i = 0; i < numSteppers; i++) {
-            steppers[i]->setPeriod(f);
+    switch (number) {
+      case 21:
+        f = ((50000.0 * value) / 127) / 100.0;  // Up to 500ms
+        for (i = 0; i < numSteppers; i++) {
+          steppers[i]->setPeriod(f);
+        }
+        break;
+      case 22:
+        if (isMono) {
+          f = detuneCalcApprox(0.333f, value); // Detune up to 1/3 semitone
+          for (i = 1; i < numSteppers; i++) {
+            steppers[i]->setDetune(((float)i / (numSteppers-1))*f);
           }
-          break;
-        case 22:
-          if (isMono) {
-            f = detuneCalc(33.3, m2); // Detune up to 1/3 semitone
-            for (i = 1; i < numSteppers; i++) {
-              steppers[i]->setDetune(((float)i / (numSteppers-1))*f);
-            }
-          } else {
-            f = detuneCalc(100.0, m2); // Detune up to 1 semitone
-            for (i = 0; i < numSteppers; i++) {
-              steppers[i]->setDetune(f);
-            }
-          }
-          break;
-        case 23:
-          f = detuneCalc(1200.0, m2);  // Detune up to 1 octave
+        } else {
+          f = detuneCalcApprox(1.0f, value); // Detune up to 1 semitone
           for (i = 0; i < numSteppers; i++) {
-            steppers[i]->setPitchShift(f);
-          }           
-          break;
-      }
+            steppers[i]->setDetune(f);
+          }
+        }
+        break;
+      case 23:
+        f = detuneCalc(12.0f, value);  // Detune up to 1 octave
+        for (i = 0; i < numSteppers; i++) {
+          steppers[i]->setPitchShift(f);
+        }
+      case 120: // All sound off
+      case 123: // All notes off
+        setAllNotesOff();
+        break;
     }
   }
 };
