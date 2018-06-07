@@ -70,7 +70,7 @@ struct DefaultSettings
     a decoding program such as Hairless MIDI (set baudrate to 115200)\n
     http://projectgus.github.io/hairless-midiserial/
     */
-    static const long BaudRate = 31250;
+    static const long BaudRate = 115200;
 
     /*! Maximum size of SysEx receivable. Decrease to save RAM if you don't expect
     to receive SysEx, or adjust accordingly.
