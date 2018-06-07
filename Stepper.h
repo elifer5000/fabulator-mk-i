@@ -22,6 +22,14 @@ int freqCalc(int note) {
   return pow(2.0, (note - 69) / 12.0) * 440.0;
 }
 
+// create a random integer from 0 - bound
+unsigned int rng(int bound) {
+  static unsigned int y = 0;
+  y += micros(); // seeded with changing number
+  y ^= y << 2; y ^= y >> 7; y ^= y << 7;
+  return (y / 65535.0f) * bound;
+}
+
 class Stepper {
 protected:
     AccelStepper stepper;
