@@ -173,10 +173,11 @@ public:
 
   void handleControlChange(byte number, byte value) {
     int i;
-    float f;
+    float f, k;
     switch (number) {
       case 21:
-        f = ((50000.0 * value) / 127) / 100.0;  // Up to 500ms
+        k = value > 60 ? 50000.0 : 25000.0; // Higher granularity in lower range
+        f = ((k * value) / 127) / 100.0;  // Up to 400ms
         for (i = 0; i < numSteppers; i++) {
           steppers[i]->setPeriod(f);
         }
