@@ -199,6 +199,7 @@ public:
         for (i = 0; i < numSteppers; i++) {
           steppers[i]->setPitchShift(f);
         }
+        break;
       case 120: // All sound off
       case 123: // All notes off
         setAllNotesOff();
