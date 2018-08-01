@@ -78,4 +78,12 @@ int pins[][5][6] = {
   { PINS_X, PINS_Y, PINS_Z, PINS_E, PINS_Q }
 };
 
+#elif CONFIG == 5 // 1 manager - 1 motor (use for testing individual motors)
+#define NUM_MANAGERS        1
+StepperManager manager[NUM_MANAGERS] = { StepperManager(1) };
+
+int pins[][1][6] = {
+  { PINS_X }
+};
+
 #endif
