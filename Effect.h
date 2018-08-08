@@ -15,11 +15,12 @@ public:
 
   void setup(unsigned long _startMillis) {
     startMillis = _startMillis;
+    prevToggle = toggle = true;
   }
 
   void setPeriod(unsigned long _period) {
     if (period == 0) {
-     prevToggle = toggle = true; // If it was off, start from an 'on' state
+      prevToggle = toggle = true; // If it was off, start from an 'on' state
     }
 
     period = _period;
@@ -67,7 +68,7 @@ public:
     if (prevToggle != toggle)
       volume++;
 
-    return volume % 5;
+    return volume % 6;
   }
 };
 
