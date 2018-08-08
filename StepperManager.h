@@ -1,5 +1,10 @@
 #define NOTES_BUFFER_SZ      32
 
+#define PULSE_PERIOD_KNOB     21
+#define PITCH_SHIFT_KNOB      22
+#define OCTAVER_KNOB          23
+#define VOLUME_SWELL_KNOB     24
+
 int convertVolume(int volume) {
   if (volume > 80) return 5;
   if (volume > 40) return 4;
@@ -175,14 +180,14 @@ public:
     int i;
     float f, k;
     switch (number) {
-      case 21:
-        k = value > 60 ? 50000.0 : 25000.0; // Higher granularity in lower range
-        f = ((k * value) / 127) / 100.0;  // Up to 400ms
+      case PULSE_PERIOD_KNOB:
+        k = value > 60 ? 50000.0 : 25000.0; // Higher granularity in lower range. Up to 500ms
+        f = ((k * value) / 127) / 100.0;
         for (i = 0; i < numSteppers; i++) {
-          steppers[i]->setPeriod(f);
+          steppers[i]->setPeriod(ePulse, f);
         }
         break;
-      case 22:
+      case PITCH_SHIFT_KNOB:
         if (isMono) {
           f = detuneCalcApprox(0.333f, value); // Detune up to 1/3 semitone
           for (i = 1; i < numSteppers; i++) {
@@ -195,10 +200,17 @@ public:
           }
         }
         break;
-      case 23:
+      case OCTAVER_KNOB:
         f = detuneCalc(12.0f, value);  // Detune up to 1 octave
         for (i = 0; i < numSteppers; i++) {
           steppers[i]->setPitchShift(f);
+        }
+        break;
+      case VOLUME_SWELL_KNOB:
+        k = value > 60 ? 50000.0 : 25000.0; // Higher granularity in lower range. Up to 500ms
+        f = ((k * value) / 127) / 100.0;
+        for (i = 0; i < numSteppers; i++) {
+          steppers[i]->setPeriod(eVolumeSwell, f);
         }
         break;
       case 120: // All sound off

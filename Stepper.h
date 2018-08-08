@@ -1,4 +1,5 @@
 #include "AccelStepper.h"
+#include "Effect.h"
 
 // Linear version - good between -100 and 100 cents
 // maxDetune is between -1 and 1 (corresponding to -100 and 100 cents)
@@ -39,14 +40,20 @@ protected:
     bool isActive;
     bool useAcceleration;
     int speed;
+    int speedTmp;
+    int speedTotal;
     float speedFactor1;
     float speedFactor2;
     int acceleration;
-    unsigned long period; // ms
-    unsigned long startMillis; // ms
-    bool usePulse;
-    bool pulseOn;
+    // unsigned long period; // ms
+    // unsigned long startMillis; // ms
+    // bool usePulse;
+    // bool pulseOn;
     int volume;
+    int volumeTmp;
+    int volumeTotal;
+    EffectManager effectManager;
+    float effectsSpeedFactor;
 
     void setupStepper() {
       if (useAcceleration) {
@@ -59,15 +66,44 @@ protected:
       }
     }
 
-    void setSpeedAndVolume() {
+    void setSpeed() {
       if (useAcceleration) {
-        stepper.setMaxSpeed(speed * speedFactor1 * speedFactor2);
+        stepper.setMaxSpeed(speedTotal);
       } else {
-        stepper.setSpeed(speed * speedFactor1 * speedFactor2);
+        stepper.setSpeed(speedTotal);
       }
-
-       setVolume(volume);
     }
+
+    void setVolume() {
+      volumeTotal = constrain(volumeTotal, 1, 5);
+      switch (volumeTotal) {
+        case 5: // 1
+          digitalWrite(ms1, LOW);
+          digitalWrite(ms2, LOW);
+          digitalWrite(ms3, LOW);
+          break;
+        case 4: // 1/2
+          digitalWrite(ms1, HIGH);
+          digitalWrite(ms2, LOW);
+          digitalWrite(ms3, LOW);
+          break;
+        case 3: // 1/4
+          digitalWrite(ms1, LOW);
+          digitalWrite(ms2, HIGH);
+          digitalWrite(ms3, LOW);
+          break;
+        case 2: // 1/8
+          digitalWrite(ms1, HIGH);
+          digitalWrite(ms2, HIGH);
+          digitalWrite(ms3, LOW);
+          break;
+        case 1: // 1/16
+          digitalWrite(ms1, HIGH);
+          digitalWrite(ms2, HIGH);
+          digitalWrite(ms3, HIGH);
+          break;
+    }
+  }
 
 public:
   Stepper(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t _ms1 = -1, uint8_t _ms2 = -1, uint8_t _ms3 = -1) :
@@ -76,14 +112,19 @@ public:
       isActive(false),
       useAcceleration(false),
       speed(0),
+      speedTotal(0),
+      speedTmp(-1),
       speedFactor1(1.0),
       speedFactor2(1.0),
       acceleration(10000),
-      period(0),
-      startMillis(0),
-      pulseOn(true),
-      usePulse(false),
-      volume(5)
+      // period(0),
+      // startMillis(0),
+      // pulseOn(true),
+      // usePulse(false),
+      volume(5),
+      volumeTmp(-1),
+      volumeTotal(5),
+      effectsSpeedFactor(1.0)
   {
     stepper.setPinsInverted(false, false, true);
     stepper.setEnablePin(enablePin);
@@ -94,19 +135,33 @@ public:
   }
   
   void setup(unsigned long initialMillis) {
-    startMillis = initialMillis;  //initial start time
+    // startMillis = initialMillis;  //initial start time
     setupStepper();
+    effectManager.setup(initialMillis);
   }
 
   void run(unsigned long currentMillis) {
     if (!isActive) return;
 
-    if (currentMillis - startMillis >= period) {
-      startMillis = currentMillis; 
-      pulseOn = !pulseOn;
-    } 
+    volumeTmp = volume;
+    effectManager.run(currentMillis, volumeTmp, effectsSpeedFactor);
+    // if (currentMillis - startMillis >= period) {
+    //   startMillis = currentMillis; 
+    //   pulseOn = !pulseOn;
+    // } 
 
-    if (usePulse && !pulseOn) return;
+    if (volumeTmp == 0) return;
+
+    speedTmp = speed * speedFactor1 * speedFactor2 * effectsSpeedFactor;
+
+    if (speedTmp != speedTotal) {
+      speedTotal = speedTmp;
+      setSpeed();
+    }
+    if (volumeTmp != volumeTotal) {
+      volumeTotal = volumeTmp;
+      setVolume();
+    }
     
     if (useAcceleration) {
       if (stepper.distanceToGo() == 0)
@@ -122,57 +177,29 @@ public:
     speed = _note;
     volume = _volume;
     isActive = speed > 0;
-    pulseOn = isActive;
-    startMillis = millis();
+    // pulseOn = isActive;
+    // startMillis = millis();
+    effectManager.setup(millis());
     
-    setSpeedAndVolume();
+    // setSpeedAndVolume();
   }
 
   void setDetune(float detune) {
     speedFactor1 = detune;
-    setSpeedAndVolume();
+    // setSpeedAndVolume();
   }
 
   void setPitchShift(float detune) {
     speedFactor2 = detune;
-    setSpeedAndVolume();
+    // setSpeedAndVolume();
   }
 
-  void setPeriod(unsigned long p) {
-    period = p;
-    if (!usePulse) pulseOn = true;
+  void setPeriod(EffectsEnum effectType, unsigned long p) {
+    // period = p;
+    // if (!usePulse) pulseOn = true;
     
-    usePulse = p > 0;
-  }
-
-  void setVolume(int val) {
-    switch (val) {
-      case 5: // 1
-        digitalWrite(ms1, LOW);
-        digitalWrite(ms2, LOW);
-        digitalWrite(ms3, LOW);
-        break;
-      case 4: // 1/2
-        digitalWrite(ms1, HIGH);
-        digitalWrite(ms2, LOW);
-        digitalWrite(ms3, LOW);
-        break;
-      case 3: // 1/4
-        digitalWrite(ms1, LOW);
-        digitalWrite(ms2, HIGH);
-        digitalWrite(ms3, LOW);
-        break;
-      case 2: // 1/8
-        digitalWrite(ms1, HIGH);
-        digitalWrite(ms2, HIGH);
-        digitalWrite(ms3, LOW);
-        break;
-      case 1: // 1/16
-        digitalWrite(ms1, HIGH);
-        digitalWrite(ms2, HIGH);
-        digitalWrite(ms3, HIGH);
-        break;
-    }
+    // usePulse = p > 0;
+    effectManager.setPeriod(effectType, p);
   }
 
   bool getIsActive() {
