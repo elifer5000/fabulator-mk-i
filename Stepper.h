@@ -44,6 +44,7 @@ protected:
     int speedTotal;
     float speedFactor1;
     float speedFactor2;
+    float pitchFactor;
     int acceleration;
     // unsigned long period; // ms
     // unsigned long startMillis; // ms
@@ -116,6 +117,7 @@ public:
       speedTmp(-1),
       speedFactor1(1.0),
       speedFactor2(1.0),
+      pitchFactor(1.0),
       acceleration(10000),
       // period(0),
       // startMillis(0),
@@ -152,7 +154,7 @@ public:
 
     if (volumeTmp == 0) return;
 
-    speedTmp = speed * speedFactor1 * speedFactor2 * effectsSpeedFactor;
+    speedTmp = speed * pitchFactor * effectsSpeedFactor;
 
     if (speedTmp != speedTotal) {
       speedTotal = speedTmp;
@@ -184,13 +186,19 @@ public:
     // setSpeedAndVolume();
   }
 
+  void updatePitchFactor() {
+    pitchFactor = speedFactor1 * speedFactor2;
+  }
+
   void setDetune(float detune) {
     speedFactor1 = detune;
+    updatePitchFactor();
     // setSpeedAndVolume();
   }
 
   void setPitchShift(float detune) {
     speedFactor2 = detune;
+    updatePitchFactor();
     // setSpeedAndVolume();
   }
 
@@ -200,6 +208,10 @@ public:
     
     // usePulse = p > 0;
     effectManager.setPeriod(effectType, p);
+  }
+
+  void setRange(EffectsEnum effectType, float p) {
+    effectManager.setRange(effectType, p);
   }
 
   bool getIsActive() {

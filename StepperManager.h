@@ -4,6 +4,9 @@
 #define PITCH_SHIFT_KNOB      22
 #define OCTAVER_KNOB          23
 #define VOLUME_SWELL_KNOB     24
+#define VIBRATO_PERIOD_KNOB   25
+#define VIBRATO_RANGE_KNOB    26
+
 
 int convertVolume(int volume) {
   if (volume > 80) return 5;
@@ -211,6 +214,18 @@ public:
         f = ((k * value) / 127) / 100.0;
         for (i = 0; i < numSteppers; i++) {
           steppers[i]->setPeriod(eVolumeSwell, f);
+        }
+        break;
+      case VIBRATO_PERIOD_KNOB:
+        k = value > 60 ? 50000.0 : 25000.0; // Higher granularity in lower range. Up to 500ms
+        f = ((k * value) / 127) / 100.0;
+        for (i = 0; i < numSteppers; i++) {
+          steppers[i]->setPeriod(eVibrato, f);
+        }
+        break;
+      case VIBRATO_RANGE_KNOB:
+        for (i = 0; i < numSteppers; i++) {
+          steppers[i]->setRange(eVibrato, value / 127.0);
         }
         break;
       case 120: // All sound off

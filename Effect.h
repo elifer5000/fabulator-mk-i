@@ -7,11 +7,13 @@ class PeriodicEffect {
 protected:
   unsigned long period; // ms
   unsigned long startMillis; // ms
+  unsigned long currentMillis; // ms
+  float range;
   bool toggle;
   bool prevToggle;
 
 public:
-  PeriodicEffect() : period(0), toggle(true), prevToggle(true) {}
+  PeriodicEffect() : period(0), range(0.0), toggle(true), prevToggle(true) {}
 
   void setup(unsigned long _startMillis) {
     startMillis = _startMillis;
@@ -26,20 +28,25 @@ public:
     period = _period;
   }
 
+  void setRange(float _range) {
+    range = _range;
+  }
+
   bool isActive() {
     return period > 0;
   }
 
-  virtual void run(unsigned long currentMillis) {
+  virtual void run(unsigned long _currentMillis) {
     prevToggle = toggle;
+    currentMillis = _currentMillis;
     if (currentMillis - startMillis >= period) {
       startMillis = currentMillis; 
       toggle = !toggle;
     } 
   }
 
-  virtual float getVolume() {
-    return 1.0;
+  virtual unsigned int getVolume() {
+    return 1;
   }
 
   virtual float getSpeedFactor() {
@@ -51,8 +58,8 @@ class PulseEffect : public PeriodicEffect {
 public:
   PulseEffect() {};
 
-  float getVolume() {
-    return toggle ? 1.0 : 0.0;
+  unsigned int getVolume() {
+    return toggle ? 1 : 0;
   }
 };
 
@@ -64,7 +71,7 @@ public:
   VolumeSwellEffect() : volume(1) {}
 
 
-  float getVolume() {
+  unsigned int getVolume() {
     if (prevToggle != toggle)
       volume++;
 
@@ -73,8 +80,25 @@ public:
 };
 
 class VibratoEffect : public PeriodicEffect {
+protected:
+  int sign;
 public:
-  VibratoEffect() {}
+  VibratoEffect() : sign(2) {}
+
+  float getSpeedFactor() {
+    if (prevToggle != toggle)
+      sign = -sign;
+
+  //   if (cents > 0)  //range is between 0 and 1
+  //   return 1 + 0.059463094*cents;
+
+  // return 1 + 0.056125687*cents;
+
+    //float factor = 10; // Range seems to be too small, maybe need a factor
+    float y = range * sign * (-0.5 + (currentMillis - startMillis) / period);
+    
+    return (y > 0) ? (1 + 0.059463094*y) : (1 + 0.056125687*y);
+  }
 };
 
 class RandomEffect : public PeriodicEffect {
@@ -113,15 +137,16 @@ public:
     }
 
     retSpeedFactor = 1.0;
-    
-    // retSpeedFactor *= effects[i]->getSpeedFactor();
+    if (effects[eVibrato]->isActive()) {
+      retSpeedFactor = effects[eVibrato]->getSpeedFactor();
+    }
   }
 
   void setPeriod(EffectsEnum effectType, unsigned long _period) {
     effects[effectType]->setPeriod(_period);
   }
 
-  void setRange(EffectsEnum effectType, unsigned long _range) {
-
+  void setRange(EffectsEnum effectType, float _range) {
+    effects[effectType]->setRange(_range);
   }
 };
