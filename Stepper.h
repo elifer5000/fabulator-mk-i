@@ -44,7 +44,7 @@ protected:
     int speedTotal;
     float speedFactor1;
     float speedFactor2;
-    float pitchFactor;
+    int pitch;
     int acceleration;
     // unsigned long period; // ms
     // unsigned long startMillis; // ms
@@ -117,7 +117,7 @@ public:
       speedTmp(-1),
       speedFactor1(1.0),
       speedFactor2(1.0),
-      pitchFactor(1.0),
+      pitch(0),
       acceleration(10000),
       // period(0),
       // startMillis(0),
@@ -154,7 +154,7 @@ public:
 
     if (volumeTmp == 0) return;
 
-    speedTmp = speed * pitchFactor * effectsSpeedFactor;
+    speedTmp = pitch * effectsSpeedFactor;
 
     if (speedTmp != speedTotal) {
       speedTotal = speedTmp;
@@ -182,23 +182,23 @@ public:
     // pulseOn = isActive;
     // startMillis = millis();
     effectManager.setup(millis());
-    
+    updatePitch();
     // setSpeedAndVolume();
   }
 
-  void updatePitchFactor() {
-    pitchFactor = speedFactor1 * speedFactor2;
+  void updatePitch() {
+    pitch = speed * speedFactor1 * speedFactor2;
   }
 
   void setDetune(float detune) {
     speedFactor1 = detune;
-    updatePitchFactor();
+    updatePitch();
     // setSpeedAndVolume();
   }
 
   void setPitchShift(float detune) {
     speedFactor2 = detune;
-    updatePitchFactor();
+    updatePitch();
     // setSpeedAndVolume();
   }
 
