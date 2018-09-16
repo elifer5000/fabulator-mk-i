@@ -38,12 +38,10 @@ protected:
     uint8_t ms2;
     uint8_t ms3;
     bool isActive;
-    int speed;
-    int speedTmp;
-    int speedTotal;
+    float speed;
     float speedFactor1;
     float speedFactor2;
-    int pitch;
+    float pitch;
     int acceleration;
     // unsigned long period; // ms
     // unsigned long startMillis; // ms
@@ -66,11 +64,11 @@ protected:
       }
     #endif
 
-    void setSpeed() {
+    void setSpeed(float speed) {
     #ifdef USE_ACCEL
-        stepper.setMaxSpeed(speedTotal);
+        stepper.setMaxSpeed(speed);
     #else
-        stepper.setSpeed(speedTotal);
+        stepper.setSpeed(speed);
     #endif
     }
 
@@ -111,8 +109,6 @@ public:
       ms1(_ms1), ms2(_ms2), ms3(_ms3),  
       isActive(false),
       speed(0),
-      speedTotal(0),
-      speedTmp(-1),
       speedFactor1(1.0),
       speedFactor2(1.0),
       pitch(0),
@@ -152,12 +148,8 @@ public:
 
     if (volumeTmp == 0) return;
 
-    speedTmp = pitch * effectsSpeedFactor;
-
-    if (speedTmp != speedTotal) {
-      speedTotal = speedTmp;
-      setSpeed();
-    }
+    setSpeed(pitch * effectsSpeedFactor);
+    
     if (volumeTmp != volumeTotal) {
       volumeTotal = volumeTmp;
       setVolume();
