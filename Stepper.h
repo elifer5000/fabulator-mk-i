@@ -38,7 +38,6 @@ protected:
     uint8_t ms2;
     uint8_t ms3;
     bool isActive;
-    bool useAcceleration;
     int speed;
     int speedTmp;
     int speedTotal;
@@ -57,22 +56,22 @@ protected:
     float effectsSpeedFactor;
 
     void setupStepper() {
-      if (useAcceleration) {
+    #ifdef USE_ACCEL
         stepper.setMaxSpeed(0);
         stepper.setAcceleration(acceleration);
         stepper.moveTo(1000000);
-      } else {
+    #else
         stepper.setSpeed(0.0);
         stepper.setMaxSpeed(10000);        
       }
-    }
+    #endif
 
     void setSpeed() {
-      if (useAcceleration) {
+    #ifdef USE_ACCEL
         stepper.setMaxSpeed(speedTotal);
-      } else {
+    #else
         stepper.setSpeed(speedTotal);
-      }
+    #endif
     }
 
     void setVolume() {
@@ -111,7 +110,6 @@ public:
       stepper(AccelStepper::DRIVER, stepPin, dirPin),
       ms1(_ms1), ms2(_ms2), ms3(_ms3),  
       isActive(false),
-      useAcceleration(false),
       speed(0),
       speedTotal(0),
       speedTmp(-1),
@@ -165,13 +163,13 @@ public:
       setVolume();
     }
     
-    if (useAcceleration) {
+#ifdef USE_ACCEL
       if (stepper.distanceToGo() == 0)
           stepper.moveTo(-stepper.currentPosition());
         stepper.run();
-    } else {
+#else
       stepper.runSpeed();
-    }
+#endif
   }
 
   // note is in Hz

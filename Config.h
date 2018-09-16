@@ -1,4 +1,5 @@
 #define CONFIG             1
+//#define USE_ACCEL		   
 
 // Arduino PINS
 #define X_STEP_PIN         54
